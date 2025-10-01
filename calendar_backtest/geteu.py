@@ -21,6 +21,8 @@
 #
 # Dependencies:
 #   pip install yfinance pandas numpy matplotlib
+# iwda_dayofweek_backtest.py
+# (same header as before)
 
 import sys
 import math
@@ -34,10 +36,9 @@ from dataclasses import dataclass
 TICKER = "IWDA.AS"
 START = "2010-01-01"
 END   = None              # e.g., "2025-01-01" or None for latest
-FEE_BPS_PER_SIDE = 0.0    # e.g., 2.0 means 0.02% per side -> round-trip is 4 bps (DOW legs only)
+FEE_BPS_PER_SIDE = 0.0
 PLOT_TITLE = f"Day-of-Week One-Day Strategies vs Buy & Hold on {TICKER}"
 # ------------------------------------------------
-
 
 @dataclass
 class StratResult:
@@ -55,53 +56,39 @@ class StratResult:
     equity: pd.Series
     rets: pd.Series
 
-
 def _tz_naive(df: pd.DataFrame) -> pd.DataFrame:
-    """Make DateTimeIndex timezone-naive for consistency."""
     idx = df.index
     if getattr(idx, "tz", None) is not None:
         df = df.tz_convert(None)
     return df
-
 
 def _download_prices(ticker: str, start: str, end: str | None) -> pd.DataFrame:
     data = yf.download(ticker, start=start, end=end, auto_adjust=False, progress=False)
     if data.empty:
         raise RuntimeError(f"No data returned for {ticker}. Check the symbol or date range.")
     data = _tz_naive(data).sort_index()
-    # Prefer Adjusted Close (includes dividends/splits)
     data["PX"] = data.get("Adj Close", data["Close"]).copy()
-    data["weekday"] = data.index.weekday  # Monday=0 ... Friday=4
-    # Next trading day's close and date:
+    data["weekday"] = data.index.weekday
     data["PX_next"] = data["PX"].shift(-1)
     data["date_next"] = data.index.to_series().shift(-1).values
-    # close-to-next-close raw return
     data["r_cc"] = data["PX_next"] / data["PX"] - 1.0
     return data
-
 
 def _max_drawdown(equity: pd.Series) -> float:
     peak = equity.cummax()
     dd = equity / peak - 1.0
-    return float(dd.min())  # negative number
-
+    return float(dd.min())
 
 def _annualize(daily_rets: pd.Series, periods_per_year: int = 252) -> tuple[float, float, float]:
-    """
-    Return (ann_ret, ann_vol, ann_down_vol) from arithmetic daily returns.
-    Downside vol uses only negative returns.
-    """
     r = daily_rets.replace([np.inf, -np.inf], np.nan).fillna(0.0)
     mean = float(r.mean())
     vol = float(r.std(ddof=0))
     down = r[r < 0.0]
     down_vol = float(down.std(ddof=0)) if len(down) else 0.0
-
     ann_ret = (1.0 + mean) ** periods_per_year - 1.0
     ann_vol = vol * math.sqrt(periods_per_year)
     ann_down_vol = down_vol * math.sqrt(periods_per_year)
     return ann_ret, ann_vol, ann_down_vol
-
 
 def _cagr_from_equity(equity: pd.Series) -> float:
     if equity.empty:
@@ -111,24 +98,12 @@ def _cagr_from_equity(equity: pd.Series) -> float:
         return 0.0
     return float(equity.iloc[-1]) ** (1.0 / t_years) - 1.0
 
-
-def _build_dow_strategy(
-    data: pd.DataFrame, buy_weekday: int, label: str, fee_bps_per_side: float
-) -> StratResult:
-    """
-    One-day (close->next close) strategy conditioned on buy_weekday.
-    Transaction costs charged once per round-trip trade.
-    """
-    # Trade mask
+def _build_dow_strategy(data: pd.DataFrame, buy_weekday: int, label: str, fee_bps_per_side: float) -> StratResult:
     mask = data["weekday"] == buy_weekday
-    # raw one-day return from close to next close
     r = data.loc[mask, "r_cc"].dropna().copy()
-
-    # Apply transaction costs (bps per side -> decimal), round-trip
     tc = (fee_bps_per_side / 10_000.0) * 2.0
     r_net = r - tc
 
-    # Equity curve on trade exits, then align to daily calendar
     equity_trades = (1.0 + r_net).cumprod()
     exit_dates = data.loc[mask & data["PX_next"].notna(), "date_next"].astype("datetime64[ns]")
     eq_tmp = pd.Series(equity_trades.values, index=exit_dates.values)
@@ -137,11 +112,9 @@ def _build_dow_strategy(
     full_equity.iloc[0] = 1.0
     full_equity = full_equity.ffill().fillna(1.0)
 
-    # Daily return series aligned to calendar (0 when flat)
     daily_rets = pd.Series(0.0, index=data.index)
     daily_rets.loc[exit_dates] = r_net.values
 
-    # Metrics
     n_trades = int(r_net.size)
     total_return = float(equity_trades.iloc[-1] - 1.0) if n_trades > 0 else 0.0
     cagr = _cagr_from_equity(full_equity)
@@ -151,54 +124,22 @@ def _build_dow_strategy(
     win_rate = float((r_net > 0).mean()) if n_trades > 0 else 0.0
     mdd = _max_drawdown(full_equity)
     calmar = (cagr / abs(mdd)) if mdd < 0 else np.nan
-    # Exposure: days with a trade exit vs total days
     exposure = float((daily_rets != 0).mean())
 
-    return StratResult(
-        name=label,
-        n_trades=n_trades,
-        total_return=total_return,
-        cagr=cagr,
-        sharpe=sharpe,
-        sortino=sortino,
-        ann_vol=ann_vol,
-        win_rate=win_rate,
-        max_drawdown=mdd,
-        calmar=calmar,
-        exposure=exposure,
-        equity=full_equity,
-        rets=daily_rets,
-    )
-
+    return StratResult(label, n_trades, total_return, cagr, sharpe, sortino, ann_vol,
+                       win_rate, mdd, calmar, exposure, full_equity, daily_rets)
 
 def _build_buy_hold(data: pd.DataFrame, label: str = "Buy & Hold") -> StratResult:
-    """Buy & Hold on adjusted prices (close-to-close)."""
     daily_rets = data["PX"].pct_change().fillna(0.0)
     equity = (1.0 + daily_rets).cumprod()
-
     cagr = _cagr_from_equity(equity)
     ann_ret, ann_vol, ann_down_vol = _annualize(daily_rets)
     sharpe = (ann_ret / ann_vol) if ann_vol > 1e-12 else 0.0
     sortino = (ann_ret / ann_down_vol) if ann_down_vol > 1e-12 else 0.0
     mdd = _max_drawdown(equity)
     calmar = (cagr / abs(mdd)) if mdd < 0 else np.nan
-
-    return StratResult(
-        name=label,
-        n_trades=0,
-        total_return=float(equity.iloc[-1] - 1.0),
-        cagr=cagr,
-        sharpe=sharpe,
-        sortino=sortino,
-        ann_vol=ann_vol,
-        win_rate=float((daily_rets > 0).mean()),
-        max_drawdown=mdd,
-        calmar=calmar,
-        exposure=1.0,  # invested every day
-        equity=equity,
-        rets=daily_rets,
-    )
-
+    return StratResult(label, 0, float(equity.iloc[-1] - 1.0), cagr, sharpe, sortino, ann_vol,
+                       float((daily_rets > 0).mean()), mdd, calmar, 1.0, equity, daily_rets)
 
 def main():
     print(f"Downloading {TICKER}...")
@@ -215,11 +156,9 @@ def main():
 
     results: list[StratResult] = []
     for wd, (label, _color) in mapping.items():
-        res = _build_dow_strategy(data, buy_weekday=wd, label=label, fee_bps_per_side=FEE_BPS_PER_SIDE)
-        results.append(res)
+        results.append(_build_dow_strategy(data, wd, label, FEE_BPS_PER_SIDE))
 
-    # Buy & Hold benchmark
-    bh = _build_buy_hold(data, label="Buy & Hold")
+    bh = _build_buy_hold(data, "Buy & Hold")
     results.append(bh)
 
     # --------- Plot: equity curves ----------
@@ -230,7 +169,6 @@ def main():
         y_end = 100 * (res.equity.iloc[-1] - 1.0)
         plt.text(res.equity.index[-1], y_end, f"{y_end:.2f}", color=color, fontsize=8, va="center")
 
-    # Buy & Hold on top
     plt.plot(bh.equity.index, 100 * (bh.equity - 1.0), label="Buy & Hold", linewidth=2.5, color="dimgray")
     y_end_bh = 100 * (bh.equity.iloc[-1] - 1.0)
     plt.text(bh.equity.index[-1], y_end_bh, f"{y_end_bh:.2f}", color="dimgray", fontsize=9, va="center")
@@ -241,7 +179,17 @@ def main():
     plt.legend(loc="upper left", ncol=2)
     plt.grid(True, alpha=0.25)
     plt.tight_layout()
+
+    # >>> Save the figure <<<
+    plot_fname = (
+        f"iwda_dayofweek_vs_buyhold_{TICKER.replace('.', '-')}_"
+        f"{data.index[0].date()}_{data.index[-1].date()}.png"
+    )
+    plt.savefig(plot_fname, dpi=200, bbox_inches="tight")
+    print(f"Saved plot to {plot_fname}")
+
     plt.show()
+    plt.close()
 
     # --------- Stats table ----------
     stats_rows = []
@@ -256,7 +204,7 @@ def main():
             "Sharpe": r.sharpe,
             "Sortino": r.sortino,
             "Win Rate %": 100 * r.win_rate,
-            "Max DD %": 100 * r.max_drawdown,         # negative
+            "Max DD %": 100 * r.max_drawdown,
             "Calmar": r.calmar,
         })
 
@@ -274,7 +222,6 @@ def main():
     print("\nSaved:")
     print(" - iwda_dayofweek_vs_buyhold_equity_curves.csv")
     print(" - iwda_dayofweek_vs_buyhold_stats.csv")
-
 
 if __name__ == "__main__":
     try:
