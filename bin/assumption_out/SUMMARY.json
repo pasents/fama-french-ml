@@ -1,0 +1,28 @@
+{
+  "input_file": ".\\Investment_universe\\europe_returns.csv",
+  "schema": {
+    "format": "wide_date_col",
+    "date": "Date",
+    "ticker": null,
+    "price": null,
+    "ret": null
+  },
+  "interpreted_kind": "return",
+  "n_assets": 126,
+  "date_min": "2013-01-03 00:00:00",
+  "date_max": "2025-10-27 00:00:00",
+  "outputs": {
+    "coverage_missingness": "coverage_missingness.csv",
+    "asset_assumption_tests": "asset_assumption_tests.csv",
+    "outliers_note": "included in asset_assumption_tests (outliers_gt6sigma)",
+    "correlations_pearson": "correlations_pearson.csv",
+    "correlations_spearman": "correlations_spearman.csv",
+    "eigen_spectrum": "eigen_spectrum.csv",
+    "plots": [
+      "plot_ann_return_hist.png",
+      "plot_sharpe_hist.png",
+      "plot_scree.png",
+      "* per-asset: <ASSET>_{hist,qq,acf}.png"
+    ]
+  }
+}

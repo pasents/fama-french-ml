@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-10-28T18:28:43",
+  "inputs": {
+    "returns": "Investment_universe\\europe_returns.csv",
+    "returns_sha1": "4391a02e7f0b01363b4747ae98e5e776b778e1c3",
+    "prices": "Investment_universe\\europe_prices.csv",
+    "prices_sha1": "8ec9c929546f0be91609d6fe3cb1ccde593100a8",
+    "diag": "europe_asset_diagnostics.csv",
+    "diag_sha1": ""
+  },
+  "params": {
+    "outdir": "Investment_universe",
+    "min_obs": 250,
+    "max_missing": 0.2,
+    "winsorize_pct": 0.0,
+    "auto_rules": [
+      "kurtosis>=50",
+      "abs(skew)>=10",
+      "max_drawdown<=-0.95",
+      "outliers_gt6sigma>=100"
+    ],
+    "blacklist_file": "",
+    "whitelist_file": "",
+    "dry_run": false
+  },
+  "counts": {
+    "n_input_returns_cols": 126,
+    "n_dropped": 18,
+    "n_kept": 108
+  },
+  "rule_hit_counts": {
+    "kurtosis>=50": 14,
+    "abs(skew)>=10": 3,
+    "max_drawdown<=-0.95": 8,
+    "outliers_gt6sigma>=100": 0
+  }
+}

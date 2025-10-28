@@ -1,0 +1,29 @@
+series,test,stat,pval,lags,nobs,null,verdict_at_5%
+MKT_RF,ADF[c],-37.41617918076812,0.0,6,9147,unit root,stationary
+MKT_RF,ADF[ct],-37.41625403198475,0.0,6,9147,unit root,stationary
+MKT_RF,KPSS[c],0.03321838029878535,0.1,17,9154,stationary,stationary
+MKT_RF,KPSS[ct],0.026061632599383926,0.1,17,9154,stationary,stationary
+SMB,ADF[c],-16.20374462739562,4.052253033950985e-29,33,9120,unit root,stationary
+SMB,ADF[ct],-16.216209795493345,0.0,33,9120,unit root,stationary
+SMB,KPSS[c],0.1401010090340496,0.1,32,9154,stationary,stationary
+SMB,KPSS[ct],0.10484157435473966,0.1,32,9154,stationary,stationary
+HML,ADF[c],-15.39428048782274,3.2786090916716623e-28,26,9127,unit root,stationary
+HML,ADF[ct],-15.404062237808207,1.489815243910539e-22,26,9127,unit root,stationary
+HML,KPSS[c],0.3250288024155718,0.1,22,9154,stationary,stationary
+HML,KPSS[ct],0.23101897114114534,0.01,22,9154,stationary,non-stationary
+RMW,ADF[c],-40.71817009257488,0.0,4,9149,unit root,stationary
+RMW,ADF[ct],-88.02582733176098,0.0,0,9153,unit root,stationary
+RMW,KPSS[c],0.4916282998109841,0.04355218472725583,16,9154,stationary,non-stationary
+RMW,KPSS[ct],0.11850159182949836,0.1,15,9154,stationary,stationary
+CMA,ADF[c],-14.072525236975343,2.9231738445654866e-26,29,9124,unit root,stationary
+CMA,ADF[ct],-14.08701659323223,9.191757453447492e-22,29,9124,unit root,stationary
+CMA,KPSS[c],0.2576724131505827,0.1,17,9154,stationary,stationary
+CMA,KPSS[ct],0.12737116553665803,0.08449784159878142,17,9154,stationary,stationary
+RF,ADF[c],-2.8064973527761112,0.05735164447179208,23,9130,unit root,non-stationary
+RF,ADF[ct],-2.676454403747368,0.24598839851375276,23,9130,unit root,non-stationary
+RF,KPSS[c],4.79812791605038,0.01,57,9154,stationary,non-stationary
+RF,KPSS[ct],1.2990552209307908,0.01,57,9154,stationary,non-stationary
+MOM,ADF[c],-15.660349291610235,1.556776338631597e-28,33,9032,unit root,stationary
+MOM,ADF[ct],-15.66224437580064,1.2662785872482177e-22,33,9032,unit root,stationary
+MOM,KPSS[c],0.045735377052325235,0.1,14,9066,stationary,stationary
+MOM,KPSS[ct],0.0250600272606389,0.1,14,9066,stationary,stationary

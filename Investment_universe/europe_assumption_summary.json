@@ -1,0 +1,23 @@
+{
+  "alpha": 0.05,
+  "lb_lags": [
+    5,
+    10,
+    20
+  ],
+  "arch_lag": 5,
+  "kpss_reg": "c",
+  "min_obs": 250,
+  "max_missing": 0.2,
+  "returns": "Investment_universe\\europe_returns_cleaned.csv",
+  "out_csv": "Investment_universe\\europe_assumption_tests.csv",
+  "counts": {
+    "n_columns": 108,
+    "n_tested": 108,
+    "n_skipped_quality": 0,
+    "stationary_pass": 106,
+    "lb_pass": 19,
+    "arch_pass": 0,
+    "overall_pass": 0
+  }
+}
