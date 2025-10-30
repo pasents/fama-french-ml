@@ -1,0 +1,7 @@
+test,estimate,se,tstat,N,note
+Zero-mean across assets (daily),,,-0.020808932086690518,106,"avg HAC t-stat across assets, lags=5"
+"Momentum L–S (12m, skip1m), monthly",0.002729857556139569,0.0023278324921724995,1.1727036053147755,142,equal-weight deciles; EU financials
+Fama–MacBeth daily alpha,-11095702230.7176,40391129876.19984,-0.2747064086775066,3231,HAC lags=10
+Fama–MacBeth daily beta_mom20d,19649631566.15399,309502202331.4657,0.06348785701082006,3231,HAC lags=10
+Fama–MacBeth daily beta_vol20d,-3177958149069.4673,3384670838905.219,-0.9389267968218103,3231,HAC lags=10
+Spearman IC (mom20d → next-day),-535749213999.0344,1266161218091.301,-0.42312875038666864,3229,daily IC; HAC lags=10

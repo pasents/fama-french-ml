@@ -5,6 +5,7 @@ Auto-generate/refresh README sections from pipeline JSON & CSV outputs.
 Usage (Windows / PowerShell):
   python update_readme.py
   python update_readme.py --root Investment_universe --readme README.md
+  python update_readme.py --hypo-csv reports/hypothesis_tests_summary.csv
   python update_readme.py --dry-run   # prints markdown instead of writing
 
 It replaces content between these markers in README.md:
@@ -41,17 +42,50 @@ def fmt_pct(x, digits=1):
     except Exception:
         return "n/a"
 
-def build_markdown(root: Path) -> str:
+def render_markdown_table(df: pd.DataFrame, max_rows: int | None = None) -> list[str]:
+    """
+    Render a pandas DataFrame to a GitHub-flavored Markdown table.
+    - Preserves column order
+    - Truncates to max_rows if provided
+    - Formats floats to a sensible precision
+    """
+    if df is None or df.empty:
+        return ["_No rows available._"]
+
+    if max_rows is not None and df.shape[0] > max_rows:
+        df = df.head(max_rows).copy()
+
+    # Light float formatting without losing scientific notation columns
+    def _fmt_val(v):
+        if isinstance(v, float):
+            # show small p-values and large numbers nicely
+            if abs(v) != 0 and (abs(v) < 1e-3 or abs(v) >= 1e5):
+                return f"{v:.3g}"
+            return f"{v:.6g}"
+        return str(v)
+
+    cols = list(df.columns)
+    lines = []
+    lines.append("| " + " | ".join(cols) + " |")
+    lines.append("|" + "|".join("---" for _ in cols) + "|")
+    for _, row in df.iterrows():
+        lines.append("| " + " | ".join(_fmt_val(row[c]) for c in cols) + " |")
+    return lines
+
+def build_markdown(root: Path, hypo_csv_path: Path | None) -> str:
     # --- inputs
     clean_json  = load_json(root / "europe_clean_summary.json")
-    assume_json = load_json(root / "europe_assumption_summary.json")  # optional if you named it so
-    if assume_json is None:
-        # fallback: some runs only have the CSV with a separate config dump printed to console
-        assume_json = {}
+    assume_json = load_json(root / "europe_assumption_summary.json") or {}
 
     drops_csv    = load_csv(root / "europe_dropped_tickers.csv")
     kept_csv     = load_csv(root / "europe_kept_tickers.csv")
     tests_csv    = load_csv(root / "europe_assumption_tests.csv")
+
+    # hypothesis tests summary (global, not under root by default)
+    if hypo_csv_path is None:
+        # opinionated default that matches your screenshot run
+        hypo_csv_path = Path("reports/hypothesis_tests_summary.csv")
+    hypo_df = load_csv(hypo_csv_path)
 
     # --- time
     ts = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -96,7 +130,6 @@ def build_markdown(root: Path) -> str:
     top_arch = []
     nonstationary = []
     if tests_csv is not None and not tests_csv.empty:
-        # Expect columns like: asset, adf_p, kpss_p, lb_p_lag5, lb_p_lag10, lb_p_lag20, arch_p, ...
         alpha_ = float(alpha)
 
         if {"asset","adf_p","kpss_p"}.issubset(tests_csv.columns):
@@ -104,7 +137,6 @@ def build_markdown(root: Path) -> str:
                 (tests_csv["adf_p"] > alpha_) | (tests_csv["kpss_p"] < alpha_), "asset"
             ].dropna().astype(str).tolist()
 
-        # autocorr: any LB p < alpha
         lb_cols = [c for c in tests_csv.columns if c.startswith("lb_p_lag")]
         if lb_cols:
             lb_any = tests_csv.assign(lb_any = tests_csv[lb_cols].min(axis=1))
@@ -115,7 +147,6 @@ def build_markdown(root: Path) -> str:
                      .values.tolist()
             )
 
-        # arch: p < alpha
         if "arch_p" in tests_csv.columns:
             top_arch = (
                 tests_csv.sort_values("arch_p")
@@ -131,7 +162,6 @@ def build_markdown(root: Path) -> str:
         preview = drops_csv[cols].head(12)
         drop_rows = preview.values.tolist()
 
-    # --- kept size
     kept_count = int(n_keep or (0 if kept_csv is None else kept_csv.shape[0]))
 
     # --- build markdown
@@ -204,7 +234,6 @@ def build_markdown(root: Path) -> str:
         md.append("| Asset | Reason | Rules | Kurtosis | Skew | MaxDD | >6σ |")
         md.append("|---|---|---|---:|---:|---:|---:|")
         for row in drop_rows:
-            # Row order depends on available columns, normalize with safe get
             row_map = {k:v for k,v in zip(drops_csv.columns, row)}
             md.append(
                 f"| {row_map.get('asset','')} | "
@@ -217,6 +246,18 @@ def build_markdown(root: Path) -> str:
             )
         md.append("")
         md.append("</details>")
+        md.append("")
+
+    # NEW: Hypothesis testing summary section
+    md.append("## Hypothesis Testing Summary")
+    md.append("")
+    if hypo_df is None or hypo_df.empty:
+        md.append("_No hypothesis testing table found at_ `" + str(hypo_csv_path).replace('\\', '/') + "`.")
+        md.append("")
+    else:
+        md.extend(render_markdown_table(hypo_df, max_rows=None))
+        md.append("")
+        md.append(f"_Source: `{str(hypo_csv_path).replace('\\', '/')}`_")
         md.append("")
 
     md.append(MARK_END)
@@ -252,13 +293,15 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--root", default="Investment_universe", help="Folder containing JSON/CSV outputs")
     p.add_argument("--readme", default="README.md", help="README file to update")
+    p.add_argument("--hypo-csv", default=None, help="Path to hypothesis_tests_summary.csv (default: reports/hypothesis_tests_summary.csv)")
     p.add_argument("--dry-run", action="store_true", help="Print markdown instead of writing README")
     args = p.parse_args()
 
     root = Path(args.root)
     readme = Path(args.readme)
+    hypo_csv = Path(args.hypo_csv) if args.hypo_csv else None
 
-    md_block = build_markdown(root)
+    md_block = build_markdown(root, hypo_csv)
     write_or_patch_readme(readme, md_block, dry_run=args.dry_run)
 
 if __name__ == "__main__":

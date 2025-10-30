@@ -2,7 +2,7 @@
 
 <!-- AUTO-SUMMARY:START -->
 
-_Last updated: **2025-10-30 15:35**_
+_Last updated: **2025-10-30 17:11**_
 
 ## Cleaning Summary
 
@@ -69,5 +69,19 @@ Parameters:
 
 </details>
 
+## Hypothesis Testing Summary
+
+| test | estimate | se | tstat | N | note |
+|---|---|---|---|---|---|
+| Zero-mean across assets (daily) | nan | nan | -0.0208089 | 106 | avg HAC t-stat across assets, lags=5 |
+| Momentum L–S (12m, skip1m), monthly | 0.00272986 | 0.00232783 | 1.1727 | 142 | equal-weight deciles; EU financials |
+| Fama–MacBeth daily alpha | -1.11e+10 | 4.04e+10 | -0.274706 | 3231 | HAC lags=10 |
+| Fama–MacBeth daily beta_mom20d | 1.96e+10 | 3.1e+11 | 0.0634879 | 3231 | HAC lags=10 |
+| Fama–MacBeth daily beta_vol20d | -3.18e+12 | 3.38e+12 | -0.938927 | 3231 | HAC lags=10 |
+| Spearman IC (mom20d → next-day) | -5.36e+11 | 1.27e+12 | -0.423129 | 3229 | daily IC; HAC lags=10 |
+
+_Source: `reports/hypothesis_tests_summary.csv`_
+
 <!-- AUTO-SUMMARY:END -->
+
 
