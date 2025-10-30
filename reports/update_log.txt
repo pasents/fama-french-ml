@@ -1,0 +1,4 @@
+[2025-10-30 15:29:04] Fetching from yfinance: 106 tickers, 2025-10-28 -> 2025-10-30
+[2025-10-30 15:29:09] ERROR: 'Adj Close'
+[2025-10-30 15:33:43] Fetching from yfinance: 106 tickers, 2025-10-28 -> 2025-10-30
+[2025-10-30 15:33:51] Appended 2 row(s). New shapes: prices=(3293, 106), returns=(3292, 106)

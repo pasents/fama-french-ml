@@ -9,14 +9,14 @@
   "kpss_reg": "c",
   "min_obs": 250,
   "max_missing": 0.2,
-  "returns": "Investment_universe\\europe_returns_cleaned.csv",
+  "returns": "Investment_universe\\modeling_returns.csv",
   "out_csv": "Investment_universe\\europe_assumption_tests.csv",
   "counts": {
-    "n_columns": 108,
-    "n_tested": 108,
+    "n_columns": 106,
+    "n_tested": 106,
     "n_skipped_quality": 0,
     "stationary_pass": 106,
-    "lb_pass": 19,
+    "lb_pass": 18,
     "arch_pass": 0,
     "overall_pass": 0
   }

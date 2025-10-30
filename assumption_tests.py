@@ -17,7 +17,7 @@ def parse_args():
     p.add_argument(
         "--returns",
         type=Path,
-        default=Path("Investment_universe/europe_returns_cleaned.csv"),
+        default=Path("Investment_universe/modeling_returns.csv"),
         help="Path to cleaned returns CSV (dates as index, tickers as columns).",
     )
     p.add_argument(
