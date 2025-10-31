@@ -306,3 +306,30 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+from pathlib import Path
+import pandas as pd
+
+REPORTS_DIR = Path("reports")
+README = Path("README.md")
+
+def append_factor_summary_to_readme():
+    heatmap = REPORTS_DIR / "factors_correlation_heatmap.png"
+    reg = REPORTS_DIR / "factor_regression_summary.csv"
+    if not reg.exists(): 
+        return
+    df = pd.read_csv(reg)
+    preview = df.head(10)[["ticker","adj_R2","alpha","alpha_t"] + 
+                          [c for c in df.columns if c.startswith("beta_")][:3]]
+    block = []
+    block.append("\n## Factor Regressions (latest)\n")
+    block.append(preview.to_markdown(index=False))
+    if heatmap.exists():
+        block.append("\n\n**Factor correlation (monthly):**\n\n")
+        block.append(f"![factors heatmap]({heatmap.as_posix()})\n")
+    with README.open("a", encoding="utf-8") as f:
+        f.write("\n".join(block))
+    print("[OK] README updated with factor summary.")
+
+if __name__ == "__main__":
+    append_factor_summary_to_readme()
