@@ -31,6 +31,11 @@ from typing import Optional
 # ====== CONFIG =========
 # ========================
 
+# Equity allocation band for dynamic mix
+W_EQ_MIN = 0.60   # lower bound of equity weight
+W_EQ_MAX = 1.00   # upper bound of equity weight (was 0.80)
+
+
 EQUITY_RETURNS_CSV = "Investment_universe/europe_returns_monthly.csv"  # <-- TODO: set your path (monthly, wide, decimal returns)
 BOND_RETURNS_CSV   = "Investment_universe/bond_returns_monthly.csv"    # <-- TODO: set your path (monthly, single-column)
 RESULTS_PREFIX     = "reports/momentum_allocation"
@@ -164,20 +169,31 @@ def long_short_equity(returns_m: pd.DataFrame, decile: float = 0.10, tc_bp: floa
 # ========================
 
 def dynamic_equity_weight(mom_factor: pd.Series, mode: str = "sigmoid") -> pd.Series:
+    """
+    Compute time-varying equity weight in the band [W_EQ_MIN, W_EQ_MAX].
+    mode = "sigmoid" : smooth mapping of z-scored factor
+    mode = "tiers"   : discrete 60/80/100% based on thresholds
+    """
     mom_factor = mom_factor.dropna()
+
     if mode == "sigmoid":
-        z = zscore(mom_factor, min_periods=24)
-        # map z to 0.6..0.8 via logistic
-        sig = 1.0 / (1.0 + np.exp(-z.clip(-3,3)))
-        w_eq = 0.6 + 0.2 * sig  # in [0.6, 0.8]
+        z = zscore(mom_factor, min_periods=24).clip(-3, 3)
+        sig = 1.0 / (1.0 + np.exp(-z))                 # in (0,1)
+        w_eq = W_EQ_MIN + (W_EQ_MAX - W_EQ_MIN) * sig  # map to [min,max]
+
     elif mode == "tiers":
-        # Simple discrete regime: negative -> 0.60, mildly positive -> 0.70, strong -> 0.80
-        w_eq = pd.Series(0.7, index=mom_factor.index)
-        w_eq[mom_factor <= 0] = 0.60
-        w_eq[mom_factor >  mom_factor.rolling(12).std(ddof=0)] = 0.80
+        w_eq = pd.Series((W_EQ_MIN + W_EQ_MAX) / 2.0, index=mom_factor.index)  # default mid
+        # negative momentum → lower bound
+        w_eq[mom_factor <= 0] = W_EQ_MIN
+        # strong momentum → upper bound
+        strong = mom_factor > mom_factor.rolling(12).std(ddof=0)
+        w_eq[strong] = W_EQ_MAX
+
     else:
         raise ValueError("Unknown mode. Use 'sigmoid' or 'tiers'.")
-    return w_eq.clip(0.6, 0.8).rename("w_equity")
+
+    return w_eq.clip(W_EQ_MIN, W_EQ_MAX).rename("w_equity")
+
 
 def blend_with_bonds(ret_equity: pd.Series, ret_bond: pd.Series, w_equity: pd.Series) -> pd.Series:
     df = pd.concat([ret_equity, ret_bond, w_equity], axis=1).dropna()
